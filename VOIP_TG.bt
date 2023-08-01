@@ -1,0 +1,283 @@
+//------------------------------------------------
+//--- 010 Editor v13.0.1 Binary Template
+//
+//      File: VOIP_TG.bt
+//   Authors: saruman9 <rum.274.4 at gmail.com>
+//   Version: 0.1
+//   Purpose: Parse VoIP protocol of Telegram.
+//  Category: Network
+// File Mask:
+//  ID Bytes:
+//   History:
+//   0.1   saruman9: Initial version.
+//------------------------------------------------
+enum <ubyte> PKT_TYPE{
+    PKT_INIT = 1,
+    PKT_INIT_ACK = 2,
+    PKT_STREAM_STATE = 3,
+    PKT_STREAM_DATA = 4,
+    PKT_UPDATE_STREAMS = 5,
+    PKT_PING = 6,
+    PKT_PONG = 7,
+    PKT_STREAM_DATA_X2 = 8,
+    PKT_STREAM_DATA_X3 = 9,
+    PKT_LAN_ENDPOINT = 10,
+    PKT_NETWORK_CHANGED = 11,
+    PKT_SWITCH_PREF_RELAY = 12,
+    PKT_SWITCH_TO_P2P = 13,
+    PKT_NOP = 14,
+    //PKT_GROUP_CALL_KEY = 15,		// replaced with 'extra' in 2.1 (protocol v6)
+    //PKT_REQUEST_GROUP = 16,
+    PKT_STREAM_EC = 17,
+};
+
+enum <ubyte> XPFLAG {
+    XPFLAG_NONE = 0,
+    XPFLAG_HAS_EXTRA = 1,
+    XPFLAG_HAS_RECV_TS = 2,
+};
+
+const uint64 EXTRA_TYPE_STREAM_FLAGS = 1;
+const uint64 EXTRA_TYPE_STREAM_CSD = 2;
+const uint64 EXTRA_TYPE_LAN_ENDPOINT = 3;
+const uint64 EXTRA_TYPE_NETWORK_CHANGED = 4;
+const uint64 EXTRA_TYPE_GROUP_CALL_KEY = 5;
+const uint64 EXTRA_TYPE_REQUEST_GROUP = 6;
+const uint64 EXTRA_TYPE_IPV6_ENDPOINT = 7;
+
+const uint64 STREAM_TYPE_AUDIO = 1;
+const uint64 STREAM_TYPE_VIDEO = 2;
+
+enum <ubyte> STREAM_DATA_FLAG {
+    STREAM_DATA_FLAG_NONE = 0,
+    STREAM_DATA_FLAG_LEN16 = 1,
+    STREAM_DATA_FLAG_HAS_MORE_FLAGS = 2,
+    STREAM_DATA_FLAG_HAS_MORE_FLAGS_LEN16 = 2 | 1,
+};
+// Since the data can't be larger than the MTU anyway,
+// 5 top bits of data length are allocated for these flags
+enum <ushort> STREAM_DATA_XFLAG {
+    STREAM_DATA_XFLAG_KEYFRAME_FRAGMENTED_EXTRA_FEC = 16 | 8 | 4,
+    STREAM_DATA_XFLAG_KEYFRAME_EXTRA_FEC = 16 | 4,
+    STREAM_DATA_XFLAG_KEYFRAME_FRAGMENTED = 16 | 8,
+    STREAM_DATA_XFLAG_KEYFRAME = 16,
+    STREAM_DATA_XFLAG_FRAGMENTED_EXTRA_FEC = 8 | 4,
+    STREAM_DATA_XFLAG_FRAGMENTED = 8,
+    STREAM_DATA_XFLAG_EXTRA_FEC = 4,
+    STREAM_DATA_XFLAG_NONE = 0,
+};
+
+local int i=0;
+local int j=0;
+
+uchar peerTag[16] <bgcolor = cLtBlue>;
+if (ReadUInt64() == 0xffffffffffffffff && ReadUInt(FTell()+8) == 0xffffffff) {
+    uint64 skip0;
+    uint32 skip1;
+    uint32 tlid <bgcolor=cLtRed>;
+    if (tlid == 0xc01572c7) {
+        Printf("TLID_UDP_REFLECTOR_SELF_INFO\n");
+        // TODO
+    } else if (tlid == 0x27D9371C) {
+        Printf("TLID_UDP_REFLECTOR_PEER_INFO\n");
+    } else {
+        Warning("Received relay response with unknown tl id");
+    }
+    Exit(0);
+}
+
+if(FileSize() - FTell() < 40) {
+    Warning("Size is too small: %Xh\n", FileSize() - FTell());
+    Exit(1);
+}
+local ubyte shortFormat = 1;
+local ubyte useMTProto2 = 1;
+
+if (!useMTProto2) {
+    // TODO
+}
+if(useMTProto2) {
+    if(!shortFormat) {
+        uchar fingerprint[8] <bgcolor=cLtRed>;
+    }
+    uchar msgKey[16] <bgcolor=cRed>;
+    local uint64 decryptedLen = FileSize() - FTell();
+    if(decryptedLen > 1500) {
+        Warning("Big size: %Xh > 40\n", decryptedLen);
+        Exit(1);
+    }
+    if(decryptedLen % 16 != 0) {
+        Warning("wrong decrypted length: %Xh\n", decryptedLen);
+        Exit(1);
+    }
+    if (shortFormat) {
+        int16 innerLen <bgcolor = cYellow>;
+    } else {
+        int32 innerLen <bgcolor = cYellow>;
+    }
+    local uint64 sizeSize = shortFormat ? 0 : 4;
+    if(innerLen > decryptedLen - sizeSize) {
+        Warning("wrong innerLen (%Xh), decryptedLen (%Xh), sizeSize (%Xh)\n",
+            innerLen, decryptedLen, sizeSize);
+    }
+    if(decryptedLen - innerLen < (shortFormat ? 16 : 12)) {
+        Warning("too little padding %Xh\n", decryptedLen-innerLen);
+        Exit(1);
+    }
+}
+
+if(shortFormat) {
+    PKT_TYPE type <bgcolor=cRed>;
+    uint32 ackId <bgcolor=cGreen>;
+    uint32 pseq <bgcolor=cBlue>;
+    uint32 acks <bgcolor=cPurple>;
+    XPFLAG pflags : 2 <bgcolor=cAqua>;
+    ubyte : 6;
+    local uint64 packetInnerLen = innerLen - 14;
+    Printf("packetInnerLen = %Xh\n", packetInnerLen);
+} else {
+    // TODO
+}
+
+if(pflags & XPFLAG_HAS_EXTRA){
+    uchar extraCount <bgcolor=cYellow>;
+    for(i=0; i<extraCount; i++) {
+        uchar extraLen <bgcolor=cSilver>;
+        uchar xbuffer[extraLen] <bgcolor=cWhite>;
+        ProcessExtraData(xbuffer);
+    }
+}
+
+if(pflags & XPFLAG_HAS_RECV_TS){
+    uint32 recvTS <bgcolor=cYellow>;
+}
+
+if(type==PKT_INIT) {
+    uint32 ver <bgcolor=cBlack>;
+    uint32 minVer <bgcolor=cRed>;
+    if(minVer>9 || ver<3) {
+        Warning("Error version\n");
+        Exit(1);
+    }
+    uint32 flags <bgcolor=cGreen>;
+    uchar numSupportedAudioCodecs <bgcolor=cBlue>;
+    for(i=0; i<numSupportedAudioCodecs; i++) {
+        if(ver<5) {
+            uchar skip;
+        } else {
+            int32 skip;
+        }
+    }
+    // TODO VideoStream setup
+}
+
+if(type==PKT_INIT_ACK){
+    if(packetInnerLen>10){
+        int32 peerVersion <bgcolor=cBlack>;
+        uint32 minVer <bgcolor=cRed>;
+        if(minVer>9 || peerVersion<3) {
+            Warning("Error version\n");
+            Exit(1);
+        }
+    } else {
+        local int32 peerVersion = 1;
+    }
+    uchar streamCount <bgcolor=cGreen>;
+    if(streamCount==0)
+        Exit(0);
+    for(i=0;i<streamCount;i++) {
+        // TODO
+        uchar stm_id <bgcolor=cPurple>;
+        uchar stm_type <bgcolor=cAqua>;
+        if(peerVersion<5){
+            uchar stm_codec <bgcolor=cBlue>;
+        }else{
+            uint32 stm_codec <bgcolor=cBlue>;
+        }
+        int16 skip;
+        uchar stm_enabled <bgcolor=cYellow>;
+        if(stm_type==STREAM_TYPE_VIDEO && peerVersion<9){
+            Warning("Skipping video stream for old protocol version\n");
+            continue;
+        }
+        if(stm_type==STREAM_TYPE_AUDIO){
+            // Processing
+        } else if(stm_type==STREAM_TYPE_VIDEO){
+            // Skip
+        } else {
+            Warning("Unknown incoming stream type: %Xh", stm_type);
+            continue;
+        }
+    }
+}
+
+if(type==PKT_STREAM_DATA || type==PKT_STREAM_DATA_X2 || type==PKT_STREAM_DATA_X3){
+    switch(type){
+        case PKT_STREAM_DATA_X2:
+            local ubyte count=2;
+            break;
+        case PKT_STREAM_DATA_X3:
+            local ubyte count=3;
+            break;
+        case PKT_STREAM_DATA:
+        default:
+            local ubyte count=1;
+            break;
+    }
+
+    for(i=0;i<count;i++){
+        ubyte streamID:6 <bgcolor=cBlack>;
+        STREAM_DATA_FLAG flags:2;
+        if(flags & STREAM_DATA_FLAG_LEN16){
+            uint16 sdlen:11 <bgcolor=cRed>;
+            STREAM_DATA_XFLAG xflags:5;
+        } else {
+            ubyte sdlen <bgcolor=cRed>;
+            local STREAM_DATA_XFLAG xflags = 0;
+        }
+        uint32 pts <bgcolor=cGreen>;
+
+        if(xflags & STREAM_DATA_XFLAG_FRAGMENTED){
+            ubyte fragmentIndex;
+            ubyte fragmentCount;
+        }
+        ubyte jit_buffer[sdlen];
+        if(xflags & STREAM_DATA_XFLAG_EXTRA_FEC){
+            ubyte fecCount;
+            for(j=0;j<fecCount;j++){
+                ubyte dlen;
+                ubyte data[dlen];
+            }
+        }
+    }
+}
+
+void ProcessExtraData(uchar xbuffer[]) {
+    uchar type <bgcolor=cBlack>;
+    if(type==EXTRA_TYPE_STREAM_FLAGS) {
+        uchar id <bgcolor=cRed>;
+        int32 flags <bgcolor=cGreen>;
+        // TODO
+    } else if(type==EXTRA_TYPE_STREAM_CSD) { // Video information
+        uchar streamID <bgcolor=cRed>;
+        int16 width <bgcolor=cGreen>;
+        int16 height <bgcolor=cBlue>;
+        uchar count <bgcolor=cPurple>;
+        for(i=0;i<count;i++){
+            uchar len <bgcolor=cAqua>;
+            uchar csd[len] <bgcolor=cYellow>;
+        }
+    } else if(type==EXTRA_TYPE_LAN_ENDPOINT) {
+        uint32 peerAddr <bgcolor=cRed>;
+        uint32 peerPort <bgcolor=cGreen>;
+    } else if(type==EXTRA_TYPE_NETWORK_CHANGED) {
+        uint32 flags <bgcolor=cRed>;
+    } else if(type==EXTRA_TYPE_GROUP_CALL_KEY) {
+        uchar groupKey[256] <bgcolor=cRed>;
+    } else if(type==EXTRA_TYPE_REQUEST_GROUP) {
+        // nothing read
+    } else if(type==EXTRA_TYPE_IPV6_ENDPOINT) {
+        uchar _addr[16] <bgcolor=cRed>;
+        uint16 port <bgcolor=cGreen>;
+    }
+}

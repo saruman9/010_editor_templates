@@ -1,0 +1,107 @@
+//------------------------------------------------
+//--- 010 Editor v13.0.1 Binary Template
+//
+//      File: MTPROTO.bt
+//   Authors: saruman9 <rum.274.4 at gmail.com>
+//   Version: 0.1
+//   Purpose: Parse MTProto Telegram.
+//  Category: Network
+// File Mask:
+//  ID Bytes:
+//   History:
+//   0.1   saruman9: Initial version.
+//------------------------------------------------
+
+typedef struct {
+    int64 msg_id <bgcolor=cYellow>;
+    int32 seqno <bgcolor=cBlack>;
+    int32 bytes <bgcolor=cSilver>;
+} TL_message;
+
+uint32 readByteArrayLen() {
+    local byte sl = 1;
+    local byte l = ReadByte();
+    if (l >= 254) {
+        uint32 ByteArrayLen;
+        // TODO
+        sl = 4;
+        return ByteArrayLen;
+    }
+    byte ByteArrayLen;
+    local uint32 addition = (ByteArrayLen + sl) % 4;
+    if (addition != 0) {
+        addition = 4 - addition;
+    }
+    return ByteArrayLen + addition;
+}
+
+void TLdeserialize(uint32 length) {
+    // byte message[messageLength] <bgcolor=cLtGreen>;
+    uint32 constructor <bgcolor=cBlue>;
+    if (constructor == 0x73f1f8dc) {
+        Printf("TL_msg_container\n");
+        uint32 count <bgcolor=cPurple>;
+        local uint64 i = 0;
+        while (i != count) {
+            TL_message message <bgcolor=cAqua>;
+            TLdeserialize(message.bytes);
+            i++;
+        }
+    }
+    if (constructor == 0x05162463) {
+        Printf("TL_resPQ\n");
+        byte nonce[16] <bgcolor=cPurple>;
+        byte server_nonce[16] <bgcolor=cAqua>;
+        local uint32 len = readByteArrayLen();
+        byte pq[len] <bgcolor=cYellow>;
+        uint32 magic <bgcolor=cSilver>;
+        uint32 count <bgcolor=cWhite>;
+        int64 fingerprints[count] <bgcolor=cRed>;
+    }
+    if (constructor == 0xf35c6d01) {
+        Printf("TL_rpc_result\n");
+        int64 req_msg_id <bgcolor=cPurple>;
+        TLdeserialize(length - 12);
+    }
+}
+
+local ubyte testByte = ReadByte();
+//ubyte fByte <bgcolor=cRed>;
+local uint32 currentPacketLength;
+local uint32 len;
+if ((testByte & (1 << 7)) != 0) {
+    int32 ackId <bgcolor=cDkRed>;
+}
+if (testByte != 0x7f) {
+    byte fByte <bgcolor=cRed>;
+    currentPacketLength = fByte * 4;
+} else {
+    uint32 fByte;
+    currentPacketLength = (fByte >> 8) * 4;
+}
+
+Printf( "currentPacketLength = %d (%xh)\n", currentPacketLength, currentPacketLength );
+len = currentPacketLength + (fByte != 0x7f ? 1 : 4);
+Printf( "len = %d (%xh)\n", len, len );
+
+if (currentPacketLength % 4 != 0 || currentPacketLength > 2 * 1024 * 1024) {
+    Warning("Invalid packet length\n");
+}
+
+local uint32 length = currentPacketLength;
+if (length <= 24 + 32) {
+    int32 code;
+    if (code == 0) {
+        Printf("mtproto noop\n");
+    } else if (code == -1) {
+        int32 ackId;
+        // TODO
+    }
+}
+
+int64 keyId <bgcolor=cLtRed>;
+if (keyId == 0) {
+    int64 messageId <bgcolor=cBlack>;
+    uint32 messageLength <bgcolor=cGreen>;
+    TLdeserialize(messageLength);
+}

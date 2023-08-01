@@ -1,0 +1,69 @@
+//--------------------------------------
+//--- 010 Editor v6.0.2 Binary Template
+//
+//      File: TAR.bt
+//    Author: xiaozhuai
+//   Version: 1.0
+//   Purpose: Read tar files.
+//  Category: Archive
+// File Mask: *.tar
+//--------------------------------------
+
+int OctalFilesizeStringToInt(char str[]){
+    if (Strlen(str) == 0) return 0;
+    local int x;
+    local int i;
+    x = 0;
+    for (i = 0; i <= 10; i++ ){
+        x += ((str[10-i]-0x30) * Pow(8, i)); 
+    }
+    return x;
+}
+
+typedef struct {
+                                  /* byte offset */
+    char name[100];               /*   0 */
+    char mode[8];                 /* 100 */
+    char uid[8];                  /* 108 */
+    char gid[8];                  /* 116 */
+    char size[12];                /* 124 */
+    char mtime[12];               /* 136 */
+    char chksum[8];               /* 148 */
+    char typeflag;                /* 156 */
+    char linkname[100];           /* 157 */
+    char magic[6];                /* 257 */
+    char version[2];              /* 263 */
+    char uname[32];               /* 265 */
+    char gname[32];               /* 297 */
+    char devmajor[8];             /* 329 */
+    char devminor[8];             /* 337 */
+    char prefix[155];             /* 345 */
+                                  /* 500 */
+} TAR_ENTRY_HEADER;
+
+typedef struct {
+    TAR_ENTRY_HEADER header;
+    UBYTE padding[12];
+    local int len = OctalFilesizeStringToInt(header.size);
+    if (len > 0) {
+        UBYTE content[len];
+        UBYTE entry_padding[512 - (len % 512)];
+    }
+} TAR_ENTRY <read=ReadEntry>;
+
+
+string ReadEntry( TAR_ENTRY &a )
+{
+    if (Strlen(a.header.name) > 0) {
+        string s;
+        SPrintf( s, "name: %s, size: %d", a.header.name, OctalFilesizeStringToInt(a.header.size));
+        return s;
+    } else {
+        return "(empty)";
+    }
+}
+
+
+while (!FEof()){
+    TAR_ENTRY entry;
+}
