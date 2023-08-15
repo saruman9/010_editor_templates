@@ -1,0 +1,140 @@
+//------------------------------------------------
+//--- 010 Editor v13.0.2 Binary Template
+//
+//      File: WEBP.bt
+//   Authors: saruman9 <rum.274.4 at gmail.com>
+//   Version: 0.1
+//   Purpose: Parse WEBP media files (https://developers.google.com/speed/webp/docs/riff_container).
+//  Category: Image
+// File Mask: *.webp
+//  ID Bytes: 52 49 46 46 //RIFF
+//   History:
+//   0.1   saruman9: Initial version.
+//------------------------------------------------
+char magic[4];
+if (magic != "RIFF") {
+    Warning("Wrong magic: %s\n", magic);
+    Exit(1);
+}
+uint32 file_size;
+char webp[4];
+if (webp != "WEBP") {
+    Warning("Wrong magic: %s\n", webp);
+    Exit(1);
+}
+
+struct Vp8(uint32 size) {
+    ubyte data[size];
+};
+
+struct Vp8l(uint32 size) {
+    ubyte data[size];
+};
+
+struct Vp8x {
+    BitfieldDisablePadding();
+    int reserved_0 : 2; // must be 0
+    int icc_profile : 1;
+    int alpha : 1;
+    int exif_metadata : 1;
+    int xmp_metadata : 1;
+    int animation : 1;
+    int reserved_1 : 1; // must be 0
+    int reserved_2 : 24; // must be 0
+    int canvas_width_minus_one : 24;
+    int canvas_height_minus_one : 24;
+    BitfieldEnablePadding();
+};
+
+struct Anim {
+    uint32 background_color;
+    uint16 loop_count;
+};
+
+enum <int> BlendingMethod {
+    BLENDING_METHOD_ALPHA = 0,
+    BLENDING_METHOD_NOT = 1,
+};
+
+enum <int> DisposalMethod {
+    DISPOSAL_METHOD_NOT = 0,
+    DISPOSAL_METHOD_BACKGROUND = 1,
+};
+
+struct Anmf(uint32 size) {
+    BitfieldDisablePadding();
+    int frame_x : 24;
+    int frame_y : 24;
+    int frame_width_minus_one : 24;
+    int frame_height_minus_one : 24;
+    BitfieldEnablePadding();
+    int frame_duration : 24;
+    int reserved : 6;
+    BlendingMethod blending_method : 1;
+    DisposalMethod disposal_method : 1;
+    ubyte frame_data[size - 16];
+};
+
+enum <int> Preprocessing {
+    PREPROCESSING_NOT = 0,
+    PREPROCESSING_LEVEL_REDUCTION = 1,
+};
+
+enum <int> FilteringMethod {
+    FILTERING_METHOD_NONE = 0,
+    FILTERING_METHOD_HORIZONTAL_FILTER = 1,
+    FILTERING_METHOD_VERTICAL_FILTER = 2,
+    FILTERING_METHOD_GRADIENT_FILTER = 3,
+};
+
+enum <int> CompressionMethod {
+    COMPRESSION_METHOD_NO = 0,
+    COMPRESSION_METHOD_LOSSLESS = 1,
+};
+
+struct Alph(uint32 size) {
+    BitfieldDisablePadding();
+    int reserved : 2;
+    Preprocessing preprocessing : 2;
+    FilteringMethod filtering_method : 2;
+    CompressionMethod compression_method : 2;
+    BitfieldEnablePadding();
+    ubyte alpha_bitstream[size - 1];
+};
+
+struct Iccp(uint32 size) {
+    ubyte color_profile[size];
+};
+
+struct Exif(uint32 size) {
+    ubyte metadata[size];
+};
+
+struct Xmp(uint32 size) {
+    ubyte metadata[size];
+};
+
+struct Chunk {
+    char name[4];
+    uint32 size;
+    switch (name)
+    {
+        case "VP8 ": Vp8 payload(size); break;
+        case "VP8L": Vp8l payload(size); break;
+        case "VP8X": Vp8x payload; break;
+        case "ANIM": Anim payload; break;
+        case "ANMF": Anmf payload(size); break;
+        case "ALPH": Alph payload(size); break;
+        case "ICCP": Iccp payload(size); break;
+        case "EXIF": Exif payload(size); break;
+        case "XMP ": Xmp payload(size); break;
+        default: Warning("Unknown chunk: %s\n", name); Exit(0); break;
+    }
+    if (size % 2 != 0) {
+        ubyte padding; // must be 0
+    }
+};
+
+while (!FEof()) {
+    Chunk chunk;
+}

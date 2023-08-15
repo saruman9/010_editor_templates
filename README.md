@@ -17,3 +17,7 @@ My and other people's templates for 010 Editor, which can be useful for Vulnerab
 - [VOIP_TG.bt](./VOIP_TG.bt)
 
     Parse VoIP protocol of Telegram.
+
+- [WEBP.bt](./WEBP.bt)
+
+    Parse [WEBP media files](https://developers.google.com/speed/webp/docs/riff_container).
