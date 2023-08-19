@@ -3,13 +3,14 @@
 //
 //      File: WEBP.bt
 //   Authors: saruman9 <rum.274.4 at gmail.com>
-//   Version: 0.1
+//   Version: 0.2
 //   Purpose: Parse WEBP media files (https://developers.google.com/speed/webp/docs/riff_container).
 //  Category: Image
 // File Mask: *.webp
 //  ID Bytes: 52 49 46 46 //RIFF
 //   History:
 //   0.1   saruman9: Initial version.
+//   0.2   saruman9: Add definition for VP8L
 //------------------------------------------------
 char magic[4];
 if (magic != "RIFF") {
@@ -28,7 +29,16 @@ struct Vp8(uint32 size) {
 };
 
 struct Vp8l(uint32 size) {
-    ubyte data[size];
+    ubyte magic_2f;
+    if (magic_2f != 0x2F) {
+        Warning("Wrong magic byte in VP8L: %X\n", magic_2f);
+        Exit(1);
+    }
+    int width_minus_one : 14;
+    int heigth_minus_one : 14;
+    int alpha_is_used : 1;
+    int version : 3; // must be 0
+    ubyte data[size - 5];
 };
 
 struct Vp8x {
