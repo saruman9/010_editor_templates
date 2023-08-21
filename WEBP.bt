@@ -3,24 +3,27 @@
 //
 //      File: WEBP.bt
 //   Authors: saruman9 <rum.274.4 at gmail.com>
-//   Version: 0.2
+//   Version: 0.3
 //   Purpose: Parse WEBP media files (https://developers.google.com/speed/webp/docs/riff_container).
 //  Category: Image
 // File Mask: *.webp
 //  ID Bytes: 52 49 46 46 //RIFF
 //   History:
-//   0.1   saruman9: Initial version.
+//   0.3   saruman9: Add support of EXIF chunk parsing
 //   0.2   saruman9: Add definition for VP8L
+//   0.1   saruman9: Initial version.
 //------------------------------------------------
+#include "TIF_include.bt"
+
 char magic[4];
 if (magic != "RIFF") {
-    Warning("Wrong magic: %s\n", magic);
+    Warning("Wrong magic: %s", magic);
     Exit(1);
 }
 uint32 file_size;
 char webp[4];
 if (webp != "WEBP") {
-    Warning("Wrong magic: %s\n", webp);
+    Warning("Wrong magic: %s", webp);
     Exit(1);
 }
 
@@ -31,7 +34,7 @@ struct Vp8(uint32 size) {
 struct Vp8l(uint32 size) {
     ubyte magic_2f;
     if (magic_2f != 0x2F) {
-        Warning("Wrong magic byte in VP8L: %X\n", magic_2f);
+        Warning("Wrong magic byte in VP8L: %X", magic_2f);
         Exit(1);
     }
     int width_minus_one : 14;
@@ -117,14 +120,34 @@ struct Iccp(uint32 size) {
 };
 
 struct Exif(uint32 size) {
-    ubyte metadata[size];
+    local uint16 tbom;
+    tbom = ReadUShort();
+    if (tbom == 0x4949) {
+        LittleEndian();
+    }
+    else if (tbom == 0x4D4D) {
+        BigEndian();
+    }
+    else {
+        Warning("Invalid TIFF payload: bad BOM (%X)", tbom);
+        Exit(1);
+    }
+
+    IFH ifh;
+    while(nextIFD) {
+        FSeek(nextIFD);
+        nextIFD = (quad)0;
+        IFD ifd;
+    }
+    FSeek(file_offset + size);
+    LittleEndian();
 };
 
 struct Xmp(uint32 size) {
     ubyte metadata[size];
 };
 
-struct Chunk {
+typedef struct {
     char name[4];
     uint32 size;
     switch (name)
@@ -138,12 +161,18 @@ struct Chunk {
         case "ICCP": Iccp payload(size); break;
         case "EXIF": Exif payload(size); break;
         case "XMP ": Xmp payload(size); break;
-        default: Warning("Unknown chunk: %s\n", name); Exit(0); break;
+        default: Warning("Unknown chunk: %s", name); Exit(0); break;
     }
     if (size % 2 != 0) {
         ubyte padding; // must be 0
     }
-};
+} Chunk <read=readChunk>;
+
+string readChunk(Chunk &chunk) {
+    local string s;
+    SPrintf(s, "%s (size: %08X)", chunk.name, chunk.size);
+    return s;
+}
 
 while (!FEof()) {
     Chunk chunk;

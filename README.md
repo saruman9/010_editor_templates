@@ -21,3 +21,7 @@ My and other people's templates for 010 Editor, which can be useful for Vulnerab
 - [WEBP.bt](./WEBP.bt)
 
     Parse [WEBP media files](https://developers.google.com/speed/webp/docs/riff_container).
+
+- [TIF_include.bt](./TIF_include.bt)
+
+    Parse TIFF (Tagged Image File Format) files, including GeoTIFF. Adapted for using as included file (see [WEBP.bt](./WEBP.bt) for example).
