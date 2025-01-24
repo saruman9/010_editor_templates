@@ -1,0 +1,80 @@
+//------------------------------------------------
+//--- 010 Editor v15.0.1 Binary Template
+//
+//      File: SONIC_WALL_SIG.bt
+//   Authors: saruman9 <rum.274.4 at gmail.com>
+//   Version: 0.1
+//   Purpose: Parse SonicWall's firmare sig files 7.* versions
+//  Category: Operating System
+// File Mask: *.sig
+//  ID Bytes: 49 AF 08 12
+//   History:
+//   0.1   saruman9: Initial version.
+//------------------------------------------------
+local uint8 SSDH_V5_SIGLEN=124;
+local uint8 PRIMARY_PRODUCT_ARRAY_SIZE=50;
+local uint8 HW_COMPATIBILITY_ARRAY_SIZE=10;
+
+BigEndian();
+
+// ssdh
+int32 magic <format=hex>;
+if (magic != 0x49af0812) {
+    Warning("Bad magic\n");
+    Exit(1);
+}
+uint8 signatures[SSDH_V5_SIGLEN];
+int32 siglen;
+int8 Header_Version;
+int8 Image_Type;
+int16 Classification_Flags <format=hex>;
+int32 reserved2;
+int32 Data_Version <format=hex>;
+uint32 Data_Size <format=hex>;
+uint32 data_offset <format=hex>;
+time_t Timestamp;
+uint32 num_products;
+uint32 reserved3;
+uint32 reserved4;
+
+struct {
+    uint32 id <format=hex>;
+    uint32 min_prodrom <format=hex>;
+    uint32 min_load_firmware;
+} Products[PRIMARY_PRODUCT_ARRAY_SIZE];
+
+char Data_Version_Name[32];
+char Data_Version_Suffix[32];
+char Hostname[64];
+char Username[32];
+char Group_Tag[32];
+uint32 num_hw_compatible;
+
+struct {
+    uint16 id <format=hex>;
+    uint16 hardware_max_rev;
+} Hardware[HW_COMPATIBILITY_ARRAY_SIZE];
+
+// fwEncrypt
+int32 magic_fw <format=hex>;
+if (magic_fw != 0x8FC4E9A7) {
+    Warning("Bad FW magic\n");
+    Exit(1);
+}
+uint32 headerLen;
+uint8 headerRev;
+uint8 headerVer;
+uint16 zero;
+uint32 algoKeyId;
+uint16 sskbIndex;
+uint16 rsaKeyLen;
+if (headerLen - rsaKeyLen != 36) {
+    Warning("Incorrect len\n");
+    Exit(1);
+}
+uint8 iv[16] <format=hex>;
+uint8 rsaKey[rsaKeyLen] <format=hex>;
+uint8 enc_data[FileSize() - FTell()];
+
+// cat rsaKey | openssl rsautl -decrypt -inkey ./FW-crypt-release.key > aes
+// cat enc_data | openssl enc -d -nopad -aes-128-cbc -iv "$iv" -K "$aes"
