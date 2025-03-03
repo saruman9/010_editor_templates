@@ -4,7 +4,7 @@
 //      File: SONIC_WALL_SIG.bt
 //   Authors: saruman9 <rum.274.4 at gmail.com>
 //   Version: 0.1
-//   Purpose: Parse SonicWall's firmare sig files 7.* versions
+//   Purpose: Parse SonicWall's firmware sig files 7.* versions
 //  Category: Operating System
 // File Mask: *.sig
 //  ID Bytes: 49 AF 08 12
